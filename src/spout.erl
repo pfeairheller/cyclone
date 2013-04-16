@@ -1,6 +1,6 @@
 %% Copyright
 -module(spout).
--author("pfeairheller").
+-author("pfeairheller@gmail.com").
 
 %% API
 -export([behaviour_info/1]).
