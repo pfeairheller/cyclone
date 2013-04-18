@@ -5,7 +5,7 @@
 -behaviour(gen_event).
 
 %% API
--export([init/3, handle_event/2, terminate/2]).
+-export([init/1, handle_event/2, terminate/2]).
 
 -record(field_map, {
    value,
@@ -13,7 +13,7 @@
 }).
 
 
-init(Source, FieldNum, DestPids) ->
+init([Source, FieldNum, DestPids]) ->
   TableName = list_to_atom(string:to_lower(Source) ++ "_field_map"),
   ets:new(TableName, [named_table, {keypos, #field_map.value}]),
   {ok, {TableName, FieldNum, DestPids}}.
