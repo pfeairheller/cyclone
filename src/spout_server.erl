@@ -11,7 +11,7 @@
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, run_loop/1]).
 
 -record(state, {
-  module,          % bolt handling module
+  module,          % spout handling module
   mod_state,
   event_man,
   run_loop_pid,
@@ -51,7 +51,5 @@ handle_cast({message, Tuple, _MsgId}, #state{event_man = EventMgrRef} = State) -
 
 
 run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid} = State ) ->
-  %%CHECK MODULE FOR nextTuple, then recurse for the next message
-  %%MAYBE MODULE USES THE PID FOR ~THIS~ GEN_SERVER TO SEND TUPLES TO, LIKE STORM'S OUTPUTCOLLECTOR!!!!!
   apply(Module, next_tuple, [Pid, ModState]),
   run_loop(State).

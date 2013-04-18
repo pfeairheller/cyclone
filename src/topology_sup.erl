@@ -5,7 +5,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -19,8 +19,9 @@
 %% API functions
 %% ===================================================================
 
-start_link() ->
-  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(Module) ->
+  Topogoly = apply(Module, init, 1),
+  supervisor:start_link({local, ?MODULE}, ?MODULE, [Topogoly]).
 
 %% ===================================================================
 %% Supervisor callbacks
@@ -33,8 +34,7 @@ init(Topology) ->
 build_child_specs(Topology) ->
   build_spouts(Topology#topology.spout_specs)
     ++ build_bolts(Topology#topology.bolts_specs)
-    ++ build_groupings(Topology#topology.groupings)
-.
+    ++ build_groupings(Topology#topology.groupings).
 
 build_spouts(SpoutSpecs) ->
   build_spouts(SpoutSpecs, []).
