@@ -25,13 +25,15 @@ handle_event(Tuple, {TableName, FieldNum, DestPids} = State) ->
       [Pid | Rest] = DestPids,
       FieldMap = #field_map{value = Key, dest_pid = Pid},
       ets:insert(TableName, FieldMap),
-      Pid ! Tuple,
+      emit(Pid,  Tuple),
       {ok, {TableName, FieldNum, lists:append(Rest, [Pid])}};
     [#field_map{dest_pid = Pid}] ->
-      Pid ! Tuple,
+      emit(Pid, Tuple),
       {ok, State}
   end.
 
 terminate(_Args, _State) ->
   ok.
 
+emit(Pid, Tuple) ->
+  gen_server:cast(Pid, {message, Tuple}).

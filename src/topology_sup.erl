@@ -11,6 +11,8 @@
 -export([init/1]).
 
 -include("topology.hrl").
+-include("spout_spec.hrl").
+-include("bolt_spec.hrl").
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
@@ -41,8 +43,19 @@ build_spouts(SpoutSpecs) ->
 
 build_spouts([], ChildSpecs) ->
   ChildSpecs;
-build_spouts(SpoutSpecs, ChildSpecs) ->
-  [].
+build_spouts([SpoutSpec | Rest], ChildSpecs) ->
+  build_spouts(Rest, [build_spout(SpoutSpec) | ChildSpecs]).
+
+build_spout(SpoutSpec) ->
+    build_spout(SpoutSpec#spout_spec.workers, SpoutSpec#spout_spec.id, SpoutSpec#spout_spec.spout, []).
+
+build_spout(0, _SpoutId, _Spout, ChildSpecs) ->
+    ChildSpecs;
+build_spout(Workers, SpoutId, {Module, Args} = Spout, ChildSpecs) ->
+    ChildId = SpoutId ++ integer_to_list(Workers),
+    NewSpec = {ChildId, {spout_server, start_link, [Module, Args]}, permanent, brutal_kill, worker, [spout_server]},
+    build_spout(Workers - 1, SpoutId, Spout, [NewSpec | ChildSpecs]).
+    
 
 build_bolts(BoltSpecs) ->
   build_bolts(BoltSpecs, []).

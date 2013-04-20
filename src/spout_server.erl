@@ -32,20 +32,20 @@ init([Module, ModState, EventMgrRef]) ->
 terminate(_Reason, #state{run_loop_pid = Pid}) ->
   exit(Pid, kill).
 
-handle_call({message, Tuple}, _From, #state{event_man = EventMgrRef} = State) ->
+handle_call({emit, Tuple}, _From, #state{event_man = EventMgrRef} = State) ->
   gen_event:notify(EventMgrRef, Tuple),
   %% We'll have to get the modules that handled this event and pass them back to the Spout
   {reply, ack, State};
-handle_call({message, Tuple, _MsgId}, _From, #state{event_man = EventMgrRef} = State) ->
+handle_call({emit, Tuple, _MsgId}, _From, #state{event_man = EventMgrRef} = State) ->
   gen_event:notify(EventMgrRef, Tuple),
   %% GOTTA TRACK MESSAGES VIA THE MSGID HERE
   %% We'll have to get the modules that handled this event and pass them back to the Spout
   {reply, ack, State}.
 
-handle_cast({message, Tuple}, #state{event_man = EventMgrRef} = State) ->
+handle_cast({emit, Tuple}, #state{event_man = EventMgrRef} = State) ->
   gen_event:notify(EventMgrRef, Tuple),
   {noreply, State};
-handle_cast({message, Tuple, _MsgId}, #state{event_man = EventMgrRef} = State) ->
+handle_cast({emit, Tuple, _MsgId}, #state{event_man = EventMgrRef} = State) ->
   gen_event:notify(EventMgrRef, Tuple),
   {noreply, State}.
 

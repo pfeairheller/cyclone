@@ -14,9 +14,8 @@ behaviour_info(_) ->
   undefined.
 
 emit(Pid, Tuple) ->
-  gen_server:cast(Pid, {message, Tuple}).
+  gen_server:cast(Pid, {emit, Tuple}).
 
 emit(Pid, Tuple, MsgId) ->
-  gen_server:cast(Pid, {message, Tuple, MsgId}).
-
+  gen_server:call(Pid, {emit, Tuple, MsgId}).
 
