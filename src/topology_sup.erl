@@ -22,7 +22,7 @@
 %% ===================================================================
 
 start_link(Module) ->
-  Topogoly = apply(Module, init, 1),
+  Topogoly = apply(Module, init, []),
   supervisor:start_link({local, ?MODULE}, ?MODULE, [Topogoly]).
 
 %% ===================================================================
