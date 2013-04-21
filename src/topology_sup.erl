@@ -32,10 +32,11 @@ start_link(Module) ->
 
 %% Build the child spec out of the topology
 init(Topology) ->
+  gen_event:start_link({local, topology_event_manager}),
   {ok, {{one_for_one, 5, 10}, build_child_specs(Topology)}}.
+%% Somehow I have to add event handlers to the topology event manager to bind everything together.
 
 build_child_specs(Topology) ->
-  io:format("~p~n", [Topology]),
   build_spouts(Topology#topology.spout_specs)
     ++ build_bolts(Topology#topology.bolts_specs)
     ++ build_groupings(Topology#topology.groupings).
@@ -55,7 +56,7 @@ build_spout(0, _SpoutId, _Spout, ChildSpecs) ->
   ChildSpecs;
 build_spout(Workers, SpoutId, {Module, Args} = Spout, ChildSpecs) ->
   ChildId = SpoutId ++ integer_to_list(Workers),
-  NewSpec = {ChildId, {spout_server, start_link, [Module, Args]}, permanent, brutal_kill, worker, [spout_server]},
+  NewSpec = {ChildId, {spout_server, start_link, [{Module, Args}, topology_event_manager]}, permanent, brutal_kill, worker, [spout_server]},
   build_spout(Workers - 1, SpoutId, Spout, [NewSpec | ChildSpecs]).
 
 
@@ -88,9 +89,6 @@ build_groupings(Groupings, ChildSpecs) ->
   [].
 
 
-
-
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -114,7 +112,7 @@ build_child_specs_test_() ->
     {"Child spec for one spout.",
       ?_assertEqual([
         {"test1",
-          {spout_server, start_link, [test_spout, [1]]},
+          {spout_server, start_link, [{test_spout, [1]}, topology_event_manager]},
           permanent, brutal_kill, worker,
           [spout_server]}],
         build_child_specs(#topology{name = "test", spout_specs = [#spout_spec{id = "test", spout = {test_spout, [1]}, workers = 1}]}))
@@ -138,7 +136,7 @@ build_child_specs_test_() ->
     {"Child spec for one bolt and one spout.",
       ?_assertEqual([
         {"spout_test1",
-          {spout_server, start_link, [test_spout, [1]]},
+          {spout_server, start_link, [{test_spout, [1]}, topology_event_manager]},
           permanent, brutal_kill, worker,
           [spout_server]},
         {"bolt_test1",
@@ -155,15 +153,15 @@ build_child_specs_test_() ->
     {"Child spec for two bolts and three spouts.",
       ?_assertEqual([
         {"spout_test1",
-          {spout_server, start_link, [test_spout, [1]]},
+          {spout_server, start_link, [{test_spout, [1]}, topology_event_manager]},
           permanent, brutal_kill, worker,
           [spout_server]},
         {"spout_test2",
-          {spout_server, start_link, [test_spout, [1]]},
+          {spout_server, start_link, [{test_spout, [1]}, topology_event_manager]},
           permanent, brutal_kill, worker,
           [spout_server]},
         {"spout_test3",
-          {spout_server, start_link, [test_spout, [1]]},
+          {spout_server, start_link, [{test_spout, [1]}, topology_event_manager]},
           permanent, brutal_kill, worker,
           [spout_server]},
         {"bolt_test1",

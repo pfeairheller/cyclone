@@ -53,3 +53,12 @@ handle_cast({emit, Tuple, _MsgId}, #state{event_man = EventMgrRef} = State) ->
 run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid} = State ) ->
   apply(Module, next_tuple, [Pid, ModState]),
   run_loop(State).
+
+
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+
+
+-endif.
