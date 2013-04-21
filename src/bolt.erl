@@ -10,7 +10,7 @@
 
 
 behaviour_info(callbacks) ->
-  [{prepare, 3}, {execute, 2}, {cleanup, 0}, {declare_output_fields, 1}];
+  [{prepare, 1}, {execute, 2}, {cleanup, 0}, {declare_output_fields, 1}];
 behaviour_info(_) ->
   undefined.
 
