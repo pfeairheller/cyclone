@@ -20,7 +20,7 @@
 
 
 start_link({Module, Args}, EventMgrRef) when is_atom(Module) ->
-  ModState = apply(Module, open, [Args]),
+  {ok, ModState} = apply(Module, open, [Args]),
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Module, ModState, EventMgrRef], []).
 
 
@@ -50,9 +50,9 @@ handle_cast({emit, Tuple, _MsgId}, #state{event_man = EventMgrRef} = State) ->
   {noreply, State}.
 
 
-run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid} = State ) ->
-  apply(Module, next_tuple, [Pid, ModState]),
-  run_loop(State).
+run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid}) ->
+  {ok, NewModState} = apply(Module, next_tuple, [Pid, ModState]),
+  run_loop(#state{module = Module, mod_state = NewModState, output_pid = Pid}).
 
 
 
