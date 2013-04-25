@@ -5,7 +5,7 @@
 -behaviour(gen_server).
 
 %% External API
--export([start_link/2, emit/2, emit/3]).
+-export([start_link/3, emit/2, emit/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, run_loop/1]).
@@ -19,9 +19,9 @@
 }).
 
 
-start_link({Module, Args}, EventMgrRef) when is_atom(Module) ->
+start_link(ChildId, {Module, Args}, EventMgrRef) when is_atom(Module) ->
   {ok, ModState} = apply(Module, open, [Args]),
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [Module, ModState, EventMgrRef], []).
+  gen_server:start_link({local, ChildId}, ?MODULE, [Module, ModState, EventMgrRef], []).
 
 
 emit(Pid, Tuple) ->
