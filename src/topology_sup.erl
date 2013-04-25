@@ -76,7 +76,7 @@ build_bolt(0, _BoltId, _Bolt, ChildSpecs) ->
   ChildSpecs;
 build_bolt(Workers, BoltId, {Module, Args} = Bolt, ChildSpecs) ->
   ChildId = BoltId ++ integer_to_list(Workers),
-  NewSpec = {ChildId, {bolt_server, start_link, [list_to_atom(ChildId), {Module, Args}]}, permanent, brutal_kill, worker, [bolt_server]},
+  NewSpec = {ChildId, {bolt_server, start_link, [list_to_atom(ChildId), {Module, Args}, topology_event_manager]}, permanent, brutal_kill, worker, [bolt_server]},
   build_bolt(Workers - 1, BoltId, Bolt, [NewSpec | ChildSpecs]).
 
 
