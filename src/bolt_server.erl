@@ -18,15 +18,6 @@
   output_pid
 }).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-start_link_test() ->
-  {ok, _Pid} = bolt_server:start_link({test_bolt, []}, a),
-  ?assertNot(undefined == whereis(bolt_server)).
--endif.
-
-
 start_link({Module, Args}, EventMgrRef) when is_atom(Module) ->
   {ok, ModState} = apply(Module, prepare, [Args]),
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Module, ModState, EventMgrRef], []).
@@ -50,3 +41,14 @@ handle_call({emit, Tuple}, _From, #state{event_man = EventMgrRef} = State) ->
 handle_cast({message, Tuple}, #state{module = Module, mod_state = ModState, output_pid = Pid}) ->
   {ok, NewModState} = apply(Module, execute, [Pid, Tuple, ModState]),
   {noreply, #state{module = Module, mod_state = NewModState}}.
+
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+start_link_test() ->
+  {ok, _Pid} = bolt_server:start_link({test_bolt, []}, a),
+  ?assertNot(undefined == whereis(bolt_server)).
+
+-endif.
+

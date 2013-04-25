@@ -5,7 +5,7 @@
 -behaviour(gen_server).
 
 %% External API
--export([start_link/2]).
+-export([start_link/2, emit/2, emit/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2, run_loop/1]).
@@ -22,6 +22,13 @@
 start_link({Module, Args}, EventMgrRef) when is_atom(Module) ->
   {ok, ModState} = apply(Module, open, [Args]),
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Module, ModState, EventMgrRef], []).
+
+
+emit(Pid, Tuple) ->
+  gen_server:cast(Pid, {emit, Tuple}).
+
+emit(Pid, Tuple, MsgId) ->
+  gen_server:call(Pid, {emit, Tuple, MsgId}).
 
 
 init([Module, ModState, EventMgrRef]) ->
@@ -59,6 +66,10 @@ run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid}) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+emit_test() ->
+  {ok, EvtMgrPid} = gen_event:start_link(),
+  {ok, Pid} = spout_server:start_link({test_spout, undefined}, EvtMgrPid),
 
+  spout_server:emit(Pid, {"test"}).
 
 -endif.

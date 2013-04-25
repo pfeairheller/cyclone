@@ -8,7 +8,7 @@
 -export([prepare/1, execute/2]).
 
 prepare(_) ->
-  ok.
+  {ok, undefined}.
 
 execute(_,_) ->
   ok.

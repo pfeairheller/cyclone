@@ -5,7 +5,7 @@
 -behaviour(gen_server).
 
 %% External API
--export([start_link/2]).
+-export([start_link/2, emit/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, terminate/2]).
@@ -22,6 +22,10 @@ start_link({Module, Args}, OutputCollector) when is_atom(Module) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Module, ModState, OutputCollector], []).
 
 
+emit(Pid, Tuple) ->
+  gen_server:cast(Pid, {message, Tuple}).
+
+
 init([Module, ModState, OutputCollector]) ->
   { ok, #state{module = Module, mod_state = ModState, output_collector = OutputCollector} }.
 
@@ -36,3 +40,4 @@ handle_call({message, Tuple}, _From, #state{module=Module, mod_state=ModState, o
 
 handle_cast({message, _Tuple}, State) ->
   {noreply, State}.
+

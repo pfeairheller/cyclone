@@ -5,7 +5,7 @@
 -behaviour(gen_event).
 
 %% API
--export([init/1, handle_event/2, terminate/2]).
+-export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 
 -record(field_map, {
    value,
@@ -25,15 +25,21 @@ handle_event(Tuple, {TableName, FieldNum, DestPids} = State) ->
       [Pid | Rest] = DestPids,
       FieldMap = #field_map{value = Key, dest_pid = Pid},
       ets:insert(TableName, FieldMap),
-      emit(Pid,  Tuple),
+      grouping_server:emit(Pid,  Tuple),
       {ok, {TableName, FieldNum, lists:append(Rest, [Pid])}};
     [#field_map{dest_pid = Pid}] ->
-      emit(Pid, Tuple),
+      grouping_server:emit(Pid, Tuple),
       {ok, State}
   end.
 
 terminate(_Args, _State) ->
   ok.
 
-emit(Pid, Tuple) ->
-  gen_server:cast(Pid, {message, Tuple}).
+handle_call(_Request, State) ->
+  {ok, reply, State}.
+
+handle_info(_Info, State) ->
+  {ok, State}.
+
+code_change(_OldVsn, State, _Extra) ->
+  {ok, State}.
