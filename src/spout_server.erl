@@ -51,7 +51,6 @@ handle_call({emit, Tuple, MsgId}, _From, #state{topology = Topology} = State) ->
 
 run_loop(#state{module = Module, mod_state = ModState, output_pid = Pid}) ->
   {ok, NewModState} = apply(Module, next_tuple, [Pid, ModState]),
-  io:format("Loop~n"),
   run_loop(#state{module = Module, mod_state = NewModState, output_pid = Pid}).
 
 
