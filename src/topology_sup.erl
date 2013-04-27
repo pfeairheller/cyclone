@@ -37,27 +37,27 @@ init(Topology) ->
 %% Somehow I have to add event handlers to the topology event manager to bind everything together.
 
 build_child_specs(Topology) ->
-  build_spouts(Topology#topology.spout_specs)
+  build_spouts(Topology, Topology#topology.spout_specs)
     ++ build_bolts(Topology#topology.bolts_specs)
     ++ build_groupings(Topology#topology.groupings).
 
-build_spouts(SpoutSpecs) ->
-  build_spouts(SpoutSpecs, []).
+build_spouts(Topology, SpoutSpecs) ->
+  build_spouts(Topology, SpoutSpecs, []).
 
-build_spouts([], ChildSpecs) ->
+build_spouts(_Topology, [], ChildSpecs) ->
   ChildSpecs;
-build_spouts([SpoutSpec | Rest], ChildSpecs) ->
-  build_spouts(Rest, lists:flatten(build_spout(SpoutSpec), ChildSpecs)).
+build_spouts(Topology, [SpoutSpec | Rest], ChildSpecs) ->
+  build_spouts(Topology, Rest, lists:flatten(build_spout(Topology, SpoutSpec), ChildSpecs)).
 
-build_spout(SpoutSpec) ->
-  build_spout(SpoutSpec#spout_spec.workers, SpoutSpec#spout_spec.id, SpoutSpec#spout_spec.spout, []).
+build_spout(Topology, SpoutSpec) ->
+  build_spout(Topology, SpoutSpec#spout_spec.workers, SpoutSpec#spout_spec.id, SpoutSpec#spout_spec.spout, []).
 
-build_spout(0, _SpoutId, _Spout, ChildSpecs) ->
+build_spout(_Topology, 0, _SpoutId, _Spout, ChildSpecs) ->
   ChildSpecs;
-build_spout(Workers, SpoutId, {Module, Args} = Spout, ChildSpecs) ->
+build_spout(Topology, Workers, SpoutId, {Module, Args} = Spout, ChildSpecs) ->
   ChildId = SpoutId ++ integer_to_list(Workers),
-  NewSpec = {ChildId, {spout_server, start_link, [list_to_atom(ChildId), {Module, Args}, topology_event_manager]}, permanent, brutal_kill, worker, [spout_server]},
-  build_spout(Workers - 1, SpoutId, Spout, [NewSpec | ChildSpecs]).
+  NewSpec = {ChildId, {spout_server, start_link, [list_to_atom(ChildId), {Module, Args}, Topology]}, permanent, brutal_kill, worker, [spout_server]},
+  build_spout(Topology, Workers - 1, SpoutId, Spout, [NewSpec | ChildSpecs]).
 
 
 build_bolts(BoltSpecs) ->
