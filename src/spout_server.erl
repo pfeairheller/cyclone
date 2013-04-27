@@ -32,9 +32,9 @@ emit(Pid, Tuple, MsgId) ->
 
 
 init([Module, ModState, Topology]) ->
-  State = #state{module = Module, mod_state = ModState, topology = Topology},
+  State = #state{module = Module, mod_state = ModState, topology = Topology, output_pid = self() },
   Pid = spawn_link(spout_server, run_loop, [State]),
-  { ok, State#state{run_loop_pid = Pid, output_pid = self() } }.
+  { ok, State#state{run_loop_pid = Pid} }.
 
 terminate(_Reason, #state{run_loop_pid = Pid}) ->
   exit(Pid, kill).

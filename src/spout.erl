@@ -14,8 +14,8 @@ behaviour_info(_) ->
   undefined.
 
 emit(Pid, Tuple) ->
-  spout_server:emit(Pid, {emit, Tuple}).
+  spout_server:emit(Pid, Tuple).
 
 emit(Pid, Tuple, MsgId) ->
-  spout_server:emit(Pid, {emit, Tuple, MsgId}).
+  spout_server:emit(Pid, Tuple, MsgId).
 
