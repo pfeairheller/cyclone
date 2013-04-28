@@ -38,8 +38,7 @@ init(Topology) ->
 
 build_child_specs(Topology) ->
   build_spouts(Topology, Topology#topology.spout_specs)
-    ++ build_bolts(Topology#topology.bolts_specs)
-    ++ build_groupings(Topology#topology.groupings).
+    ++ build_bolts(Topology#topology.bolts_specs).
 
 build_spouts(Topology, SpoutSpecs) ->
   build_spouts(Topology, SpoutSpecs, []).
@@ -65,9 +64,10 @@ build_bolts(BoltSpecs) ->
 
 build_bolts([], ChildSpecs) ->
   ChildSpecs;
-build_bolts([BoltSpec | Rest], ChildSpecs) ->
-  build_bolts(Rest, lists:flatten(build_bolt(BoltSpec), ChildSpecs)).
-
+build_bolts([BoltSpec | Rest], ChildSpecs) when BoltSpec#bolt_spec.stateful == true ->
+  build_bolts(Rest, lists:flatten(build_bolt(BoltSpec), ChildSpecs));
+build_bolts([_BoltSpec | Rest], ChildSpecs) ->
+  build_bolts(Rest, ChildSpecs).
 
 build_bolt(BoltSpec) ->
   build_bolt(BoltSpec#bolt_spec.workers, BoltSpec#bolt_spec.id, BoltSpec#bolt_spec.bolt, []).
@@ -78,15 +78,6 @@ build_bolt(Workers, BoltId, {Module, Args} = Bolt, ChildSpecs) ->
   ChildId = BoltId ++ integer_to_list(Workers),
   NewSpec = {ChildId, {bolt_server, start_link, [list_to_atom(ChildId), {Module, Args}, topology_event_manager]}, permanent, brutal_kill, worker, [bolt_server]},
   build_bolt(Workers - 1, BoltId, Bolt, [NewSpec | ChildSpecs]).
-
-
-build_groupings(Groupings) ->
-  build_groupings(Groupings, []).
-
-build_groupings([], ChildSpecs) ->
-  ChildSpecs;
-build_groupings(Groupings, ChildSpecs) ->
-  [].
 
 
 -ifdef(TEST).
