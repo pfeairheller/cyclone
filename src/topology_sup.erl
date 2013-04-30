@@ -64,13 +64,13 @@ build_bolts(BoltSpecs) ->
 
 build_bolts([], ChildSpecs) ->
   ChildSpecs;
-build_bolts([BoltSpec | Rest], ChildSpecs) when BoltSpec#bolt_spec.stateful == true ->
+build_bolts([BoltSpec | Rest], ChildSpecs) ->
   build_bolts(Rest, lists:flatten(build_bolt(BoltSpec), ChildSpecs));
 build_bolts([_BoltSpec | Rest], ChildSpecs) ->
   build_bolts(Rest, ChildSpecs).
 
 build_bolt(BoltSpec) ->
-  build_bolt(BoltSpec#bolt_spec.workers, BoltSpec#bolt_spec.id, BoltSpec#bolt_spec.bolt, []).
+  build_bolt(1, BoltSpec#bolt_spec.id, BoltSpec#bolt_spec.bolt, []).
 
 build_bolt(0, _BoltId, _Bolt, ChildSpecs) ->
   ChildSpecs;
