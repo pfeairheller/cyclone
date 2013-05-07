@@ -11,8 +11,6 @@
 -export([init/1]).
 
 -include("topology.hrl").
--include("spout_spec.hrl").
--include("bolt_spec.hrl").
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
@@ -33,12 +31,13 @@ start_link(Module) ->
 %% Build the child spec out of the topology
 init(Topology) ->
   gen_event:start_link({local, topology_event_manager}),
-  {ok, {{one_for_one, 5, 10}, build_child_specs(Topology)}}.
-%% Somehow I have to add event handlers to the topology event manager to bind everything together.
+  {ok, Graph} = topology_util:generate_topology_graph(Topology),
+  {ok, {{one_for_one, 5, 10}, build_child_specs(Graph)}}.
 
-build_child_specs(Topology) ->
-  build_spouts(Topology, Topology#topology.spout_specs)
-    ++ build_bolts(Topology#topology.bolts_specs).
+build_child_specs(Graph) ->
+  %% Find the spouts, and stateful bolts, lauch servers and add label's to the nodes with PIDs.
+  build_spouts(Graph, Graph#topology.spout_specs)
+    ++ build_bolts(Graph#topology.bolts_specs).
 
 build_spouts(Topology, SpoutSpecs) ->
   build_spouts(Topology, SpoutSpecs, []).

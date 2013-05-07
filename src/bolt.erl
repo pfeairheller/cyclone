@@ -16,7 +16,7 @@ behaviour_info(_) ->
 
 
 emit(Pid, Tuple) ->
-  gen_server:cast(Pid, {emit, Tuple}).
+  gen_fsm:send_event(Pid, {message, Tuple}).
 
 emit(Pid, Tuple, MsgId) ->
   gen_server:call(Pid, {emit, Tuple, MsgId}).

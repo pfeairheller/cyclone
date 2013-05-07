@@ -5,10 +5,11 @@
 -behaviour(bolt).
 
 %% API
--export([prepare/1, execute/2]).
+-export([prepare/1, execute/3]).
 
 prepare(_) ->
   {ok, undefined}.
 
-execute(_,_) ->
-  ok.
+execute(Emitter,Tuple,_) ->
+  bolt:emit(Emitter, Tuple),
+  {ok, undefined}.

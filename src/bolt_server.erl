@@ -5,50 +5,59 @@
 -behavior(gen_server).
 
 %% External API
--export([start_link/3]).
+-export([start_link/2, tuple/2]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, terminate/2]).
+-export([init/1, handle_call/3, terminate/2]).
 
 -record(state, {
-  module, % bolt handling module
-  mod_state,
-  event_man,
-  run_loop_pid,
-  output_pid
+  module,    % bolt handling module
+  mod_state
 }).
 
-start_link(ChildId, {Module, Args}, EventMgrRef) when is_atom(Module) ->
+start_link(ChildId, {Module, Args}) when is_atom(Module) ->
   {ok, ModState} = apply(Module, prepare, [Args]),
-  gen_server:start_link({local, ChildId}, ?MODULE, [Module, ModState, EventMgrRef], []).
+  gen_server:start_link({local, ChildId}, ?MODULE, [Module, ModState], []).
 
 
-init([Module, ModState, EventMgrRef]) ->
-  {ok, #state{module = Module, mod_state = ModState, event_man = EventMgrRef, output_pid = self()}}.
+init([Module, ModState]) ->
+  {ok, #state{module = Module, mod_state = ModState}}.
 
+tuple(Pid, Tuple) ->
+  gen_server:call(Pid, {message, Tuple}).
 
 terminate(_Reason, _State) ->
   ok.
 
-handle_call({message, Tuple}, _From, #state{module = Module, mod_state = ModState, output_pid = Pid}) ->
-  {ok, NewModState} = apply(Module, execute, [Pid, Tuple, ModState]),
+handle_call({message, Tuple}, {Emitter, _Ref}, #state{module = Module, mod_state = ModState}) ->
+  {ok, NewModState} = apply(Module, execute, [Emitter, Tuple, ModState]),
   {reply, ack, #state{module = Module, mod_state = NewModState}};
-handle_call({emit, Tuple}, _From, #state{event_man = EventMgrRef} = State) ->
-  gen_event:notify(EventMgrRef, Tuple),
-%% We'll have to get the modules that handled this event and pass them back to the Spout
-  {reply, ack, State}.
-
-handle_cast({message, Tuple}, #state{module = Module, mod_state = ModState, output_pid = Pid}) ->
-  {ok, NewModState} = apply(Module, execute, [Pid, Tuple, ModState]),
-  {noreply, #state{module = Module, mod_state = NewModState}}.
+handle_call({message, Tuple, _MsgId}, Emitter, #state{module = Module, mod_state = ModState}) ->
+  {ok, NewModState} = apply(Module, execute, [Emitter, Tuple, ModState]),
+  {reply, ack, #state{module = Module, mod_state = NewModState}}.
 
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
 start_link_test() ->
-  {ok, _Pid} = bolt_server:start_link({test_bolt, []}, a),
-  ?assertNot(undefined == whereis(bolt_server)).
+  {ok, Pid} = bolt_server:start_link(test_bolt, {test_bolt, []}),
+  ?assertNot(undefined == whereis(test_bolt)),
+
+  bolt_server:tuple(Pid, {test_tuple}),
+
+  receive
+    {'$gen_event',{message,{test_tuple}}} ->
+      ok;
+    Other ->
+      io:format("Other: ~p~n", [Other]),
+      ?assert(false)
+  after
+  1000 ->
+    io:format("Timeout"),
+    ?assert(false)
+  end.
+
 
 -endif.
 

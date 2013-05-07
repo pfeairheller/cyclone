@@ -10,7 +10,8 @@
 open(_) ->
   {ok, undefined}.
 
-next_tuple(_,_) ->
+next_tuple(Emitter,_) ->
+  spout:emit(Emitter, "Test"),
   {ok, undefined}.
 
 declare_output_fields(_Args) ->
