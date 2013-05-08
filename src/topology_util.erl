@@ -9,16 +9,17 @@
 
 generate_topology_graph(Topology) ->
   Graph = digraph:new([acyclic]),
-  SpoutVerticies = [digraph:add_vertex(Graph, {Id, Spout}) || #spout_spec{id = Id, spout = Spout} <- Topology#topology.spout_specs],
-  BoltVerticies = [digraph:add_vertex(Graph, {Id, Bolt, Groupings}) || #bolt_spec{id = Id, bolt= Bolt, groupings = Groupings} <- Topology#topology.bolts_specs],
-  Verticies = lists:foldl(fun(X, Map) -> dict:store(element(1, X), X, Map) end, dict:new(), SpoutVerticies ++ BoltVerticies),
-  connect_graph(Graph, Verticies, BoltVerticies),
+  SpoutVerticies = [digraph:add_vertex(Graph, Spout) || Spout <- Topology#topology.spout_specs],
+  BoltVerticies = [digraph:add_vertex(Graph, Bolt) || Bolt <- Topology#topology.bolt_specs],
+  Verticies = lists:foldl(fun(X, Map) -> dict:store(X#spout_spec.id, X, Map) end, dict:new(), SpoutVerticies),
+  AllVerticies = lists:foldl(fun(X, Map) -> dict:store(X#bolt_spec.id, X, Map) end, Verticies, BoltVerticies),
+  connect_graph(Graph, AllVerticies, BoltVerticies),
   {ok, Graph}.
 
 connect_graph(_Graph, _Verticies, []) ->
   ok;
 connect_graph(Graph, Verticies, [BoltVertex | Rest]) ->
-  Groupings = element(3, BoltVertex),
+  Groupings = BoltVertex#bolt_spec.groupings,
   connect_bolt(Graph, Verticies, BoltVertex, Groupings),
   connect_graph(Graph, Verticies, Rest).
 
@@ -42,12 +43,17 @@ generate_topology_graph_test_() ->
   [
     {"Graph for single spout topology",
       fun() ->
-        {ok, Graph} = generate_topology_graph(#topology{
+        Topology = #topology{
           name = "test",
-          bolts_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2, groupings = [#grouping{source = "spout_test"}, #grouping{source = "another_spout"}]}],
-          spout_specs = [#spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 3}, #spout_spec{id = "another_spout", spout = {test_spout, [1]}, workers = 3}]}),
-        io:format("Here: ~p~n", [digraph_utils:topsort(Graph)]),
-        ?assert(false)
+          bolt_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2, groupings = [#grouping{source = "spout_test"}, #grouping{source = "another_spout"}]}],
+          spout_specs = [#spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 3}, #spout_spec{id = "another_spout", spout = {test_spout, [1]}, workers = 3}]},
+        {ok, Graph} = generate_topology_graph(Topology),
+
+        Bolt = lists:nth(1, Topology#topology.bolt_specs),
+        Spout = lists:nth(1, Topology#topology.spout_specs),
+
+        ?_assertEqual(digraph:out_edges(Graph, Bolt), 2),
+        ?_assertEqual(digraph:in_edges(Graph, Spout), 2)
       end
     }
   ].

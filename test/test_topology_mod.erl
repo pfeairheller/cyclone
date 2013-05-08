@@ -10,4 +10,4 @@
 -export([init/0]).
 
 init() ->
-  #topology{spout_specs = [], bolts_specs = []}.
+  #topology{spout_specs = [], bolt_specs = []}.

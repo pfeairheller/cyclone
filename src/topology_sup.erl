@@ -37,7 +37,7 @@ init(Topology) ->
 build_child_specs(Graph) ->
   %% Find the spouts, and stateful bolts, lauch servers and add label's to the nodes with PIDs.
   build_spouts(Graph, Graph#topology.spout_specs)
-    ++ build_bolts(Graph#topology.bolts_specs).
+    ++ build_bolts(Graph#topology.bolt_specs).
 
 build_spouts(Topology, SpoutSpecs) ->
   build_spouts(Topology, SpoutSpecs, []).
@@ -97,7 +97,7 @@ build_child_specs_test_() ->
           {bolt_server, start_link, [test_bolt, []]},
           permanent, brutal_kill, worker,
           [bolt_server]}],
-        build_child_specs(#topology{name = "test", bolts_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 1}]}))
+        build_child_specs(#topology{name = "test", bolt_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 1}]}))
     },
     {"Child spec for one spout.",
       ?_assertEqual([
@@ -121,7 +121,7 @@ build_child_specs_test_() ->
           {bolt_server, start_link, [test_bolt, []]},
           permanent, brutal_kill, worker,
           [bolt_server]}],
-        build_child_specs(#topology{name = "test", bolts_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3}]}))
+        build_child_specs(#topology{name = "test", bolt_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3}]}))
     },
     {"Child spec for one bolt and one spout.",
       ?_assertEqual([
@@ -137,7 +137,7 @@ build_child_specs_test_() ->
         build_child_specs(
           #topology{
             name = "test",
-            bolts_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 1}],
+            bolt_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 1}],
             spout_specs = [#spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 1}]}))
     },
     {"Child spec for two bolts and three spouts.",
@@ -166,7 +166,7 @@ build_child_specs_test_() ->
         build_child_specs(
           #topology{
             name = "test",
-            bolts_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2}],
+            bolt_specs = [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2}],
             spout_specs = [#spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 3}]}))
     }
 
