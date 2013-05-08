@@ -50,10 +50,12 @@ generate_topology_graph_test_() ->
         {ok, Graph} = generate_topology_graph(Topology),
 
         Bolt = lists:nth(1, Topology#topology.bolt_specs),
-        Spout = lists:nth(1, Topology#topology.spout_specs),
+        E = digraph:in_edges(Graph, Bolt),
+        ?assertEqual(length(E), 2),
 
-        ?_assertEqual(digraph:out_edges(Graph, Bolt), 2),
-        ?_assertEqual(digraph:in_edges(Graph, Spout), 2)
+        Spout= lists:nth(1, Topology#topology.spout_specs),
+        InE = digraph:out_edges(Graph, Spout),
+        ?assertEqual(length(InE), 1)
       end
     }
   ].
