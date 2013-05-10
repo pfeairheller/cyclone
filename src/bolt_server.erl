@@ -4,6 +4,7 @@
 
 -behavior(gen_server).
 
+-include("topology.hrl").
 %% External API
 -export([start_link/2, tuple/2]).
 
@@ -15,12 +16,13 @@
   mod_state
 }).
 
-start_link(ChildId, {Module, Args}) when is_atom(Module) ->
+start_link(ChildId, #bolt_spec{bolt={Module, Args}} = Bolt) when is_atom(Module) ->
   {ok, ModState} = apply(Module, prepare, [Args]),
-  gen_server:start_link({local, ChildId}, ?MODULE, [Module, ModState], []).
+  gen_server:start_link({local, ChildId}, ?MODULE, [Bolt, Module, ModState], []).
 
 
-init([Module, ModState]) ->
+init([Bolt, Module, ModState]) ->
+  topology_graph:register_bolt_server(Bolt, self()),
   {ok, #state{module = Module, mod_state = ModState}}.
 
 tuple(Pid, Tuple) ->

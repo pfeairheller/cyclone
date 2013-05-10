@@ -12,13 +12,13 @@
 -export([init/1, waiting/2, transition/2]).
 
 
-start_link({Graph, Spout, MsgId}) ->
+start_link({Spout, MsgId}) ->
+  Graph = topology_graph:get_graph(),
   gen_fsm:start_link(stream, {Graph, Spout, MsgId}, []).
 
 init({Graph, _Spout, _MsgId}) ->
   %% FIND AND LAUNCH THE FIRST BOLT
   CurrentBolt = 1,
-  {ok, Graph} = topology_util:generate_topology_graph(Graph),
   {ok, transition, {CurrentBolt, Graph}}.
 
 emit(Pid, Tuple) ->
@@ -29,7 +29,6 @@ emit(Pid, Anchor, Tuple) ->
 
 ack(Pid, Anchor) ->
   gen_fsm:send_event(Pid, {ack, Anchor}).
-
 
 
 waiting({message, Tuple}, Topology) ->

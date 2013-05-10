@@ -34,8 +34,6 @@ connect_bolt(Graph, Verticies, BoltVertex, [Grouping | Rest]) ->
   end,
   connect_bolt(Graph, Verticies, BoltVertex, Rest).
 
-
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
