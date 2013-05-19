@@ -2,56 +2,82 @@
 -module(stream).
 -author("pfeairheller").
 
--behaviour(gen_fsm) .
+-behaviour(gen_server).
 
 -include("topology.hrl").
 
 %% API
--export([start_link/1]).
--export([emit/2, emit/3, ack/2]).
--export([init/1, waiting/2, transition/2]).
+-export([start_link/1, emit/2]).
+
+%% gen_server
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
+  code_change/3]).
+
+%% API
+start_link(Spout) ->
+  gen_server:start_link(?MODULE, Spout, []).
+
+emit(StreamPid, Tuple) ->
+  gen_server:call(StreamPid, {tuple, Tuple}).
+
+%% gen_server callbacks
+-record(state, {process_map}).
+
+init(Spout) ->
+  ProcessMap = dict:new(),
+  {ok, #state{process_map = dict:store(self(), Spout, ProcessMap)}}.
+
+handle_call({tuple, Tuple}, From, #state{process_map = ProcessMap} = State) ->
+  case dict:find(From, ProcessMap) of
+    {ok, Node} ->
+      processTuple(Node, Tuple, ProcessMap);
+    error ->
+      error_logger:error_msg("Unknown source of Tuple: ~p.", [From]),
+      {reply, ack, State}
+  end.
+
+handle_cast(_Request, State) ->
+  {noreply, State}.
+
+handle_info(_Info, State) ->
+  {noreply, State}.
+
+terminate(_Reason, _State) ->
+  ok.
+
+code_change(_OldVsn, State, _Extra) ->
+  {ok, State}.
 
 
-start_link({Spout, MsgId}) ->
-  Graph = topology_graph:get_graph(),
-  gen_fsm:start_link(stream, {Graph, Spout, MsgId}, []).
-
-init({Graph, _Spout, _MsgId}) ->
-  %% FIND AND LAUNCH THE FIRST BOLT
-  CurrentBolt = 1,
-  {ok, transition, {CurrentBolt, Graph}}.
-
-emit(Pid, Tuple) ->
-  gen_fsm:send_event(Pid, {message, Tuple}).
-
-emit(Pid, Anchor, Tuple) ->
-  gen_fsm:send_event(Pid, {message, Anchor, Tuple}).
-
-ack(Pid, Anchor) ->
-  gen_fsm:send_event(Pid, {ack, Anchor}).
+%% private
+processTuple(Node, Tuple, ProcessMap) ->
+  Targets = topology_graph:outbound_bolts(Node),
+  NewProcessMap = send_to_targets(Targets, Tuple, ProcessMap),
+  {reply, ack, #state{process_map = NewProcessMap}}.
 
 
-waiting({message, Tuple}, Topology) ->
-  %% Register the newly emitted tuple for further processing
-  {next_state, waiting, Topology};
-waiting({message, Anchor, Tuple}, Topology) ->
-  %% Register the newly emitted tuple as a predecessor of Anchor
-  {next_state, waiting, Topology};
-waiting({ack, Anchor}, Topology) ->
-  %% Register Anchor as finished with this bolt and move on to next bolt
-  %% Find and LAUNCH the NEXT BOLT...
-  {next_state, transition, Topology}.
+send_to_targets([], _Tuple, ProcessMap) ->
+  ProcessMap;
+send_to_targets([Target | Rest], Tuple, ProcessMap) ->
+  {Grouping, Bolt} = Target,
+  NewProcessMap = case send_to_target(Grouping, Bolt, Tuple) of
+    {ok, stateless} ->
+      ProcessMap;
+    {ok, Pid} ->
+      dict:store(Pid, Bolt, ProcessMap)
+  end,
+  send_to_targets(Rest, Tuple, NewProcessMap).
 
-transition({message, Tuple}, Topology) ->
-  %% Register the newly emitted tuple for further processing
-  {next_state, waiting, Topology};
-transition({message, Anchor, Tuple}, Topology) ->
-  %% Register the newly emitted tuple as a predecessor of Anchor
-  {next_state, waiting, Topology};
-transition({ack, Anchor}, Topology) ->
-  %% Register Anchor as finished with this bolt and move on to next bolt
-  %% Find and LAUNCH the NEXT BOLT...
-  {next_state, transition, Topology}.
-
+send_to_target(_Grouping, Bolt, Tuple) when Bolt#bolt_spec.stateful =:= false ->
+  {Module, Args} = Bolt#bolt_spec.bolt,
+  spawn_link(Module, execute, [self(),  Tuple, Args]);
+send_to_target(_Grouping, Bolt, Tuple) when Bolt#bolt_spec.stateful =:= true ->
+  case topology_graph:find_bolt_server(Bolt) of
+    {ok, Pid} ->
+      bolt:emit(Pid, Tuple);
+    {error, unknown_bolt} ->
+      ok
+  end,
+  {ok, stateless}.
 
 

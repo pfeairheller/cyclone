@@ -53,7 +53,7 @@ build_spout(0, _SpoutId, _Spout, ChildSpecs) ->
   ChildSpecs;
 build_spout(Workers, SpoutId, Spout, ChildSpecs) ->
   ChildId = SpoutId ++ integer_to_list(Workers),
-  NewSpec = {ChildId, {spout_server, start_link, [list_to_atom(ChildId), Spout]}, permanent, brutal_kill, worker, [spout_server]},
+  NewSpec = {ChildId, {spout_server, start_link, [Spout]}, permanent, brutal_kill, worker, [spout_server]},
   build_spout(Workers - 1, SpoutId, Spout, [NewSpec | ChildSpecs]).
 
 
@@ -66,7 +66,7 @@ build_bolts([BoltSpec | Rest], ChildSpecs) ->
   build_bolts(Rest, lists:flatten(build_bolt(BoltSpec), ChildSpecs)).
 
 build_bolt(BoltSpec) ->
-  build_bolt(BoltSpec#bolt_spec.workers, BoltSpec#bolt_spec.id, BoltSpec#bolt_spec.bolt, BoltSpec#bolt_spec.stateful, []).
+  build_bolt(BoltSpec#bolt_spec.workers, BoltSpec#bolt_spec.id, BoltSpec, BoltSpec#bolt_spec.stateful, []).
 
 build_bolt(0, _BoltId, _Bolt, _Stateful, ChildSpecs) ->
   ChildSpecs;
@@ -74,7 +74,7 @@ build_bolt(_Workers, _BoltId, _Bolt, Stateful, ChildSpecs) when Stateful == fals
   ChildSpecs;
 build_bolt(Workers, BoltId, Bolt, Stateful, ChildSpecs) when Stateful == true ->
   ChildId = BoltId ++ integer_to_list(Workers),
-  NewSpec = {ChildId, {bolt_server, start_link, [list_to_atom(ChildId), Bolt]}, permanent, brutal_kill, worker, [bolt_server]},
+  NewSpec = {ChildId, {bolt_server, start_link, [Bolt]}, permanent, brutal_kill, worker, [bolt_server]},
   build_bolt(Workers - 1, BoltId, Bolt, Stateful, [NewSpec | ChildSpecs]).
 
 
@@ -82,8 +82,14 @@ build_bolt(Workers, BoltId, Bolt, Stateful, ChildSpecs) when Stateful == true ->
 -include_lib("eunit/include/eunit.hrl").
 
 start_link_test() ->
-  {ok, _Pid} = topology_sup:start_link(test_topology_mod),
+  {ok, Pid} = topology_sup:start_link(test_topology_mod),
+  ?assertNot(undefined == whereis(topology_sup)),
+  exit(Pid, normal).
+
+integration_test() ->
+  {ok, _Pid} = topology_sup:start_link(count_topology_mod),
   ?assertNot(undefined == whereis(topology_sup)).
+
 
 build_child_specs_test_() ->
   [
@@ -93,7 +99,7 @@ build_child_specs_test_() ->
     {"Child spec for one bolt.",
       ?_assertEqual([
         {"test1",
-          {bolt_server, start_link, [test1, {test_bolt, []}]},
+          {bolt_server, start_link, [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 1, stateful = true}]},
           permanent, brutal_kill, worker,
           [bolt_server]}],
         build_child_specs(#topology{name = "test", bolt_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 1, stateful = true}]}))
@@ -101,7 +107,7 @@ build_child_specs_test_() ->
     {"Child spec for one spout.",
       fun() ->
         Spout1 = #spout_spec{id = "test", spout = {test_spout, [1]}, workers = 1},
-        Expected = [{"test1", {spout_server, start_link, [test1, Spout1]}, permanent, brutal_kill, worker, [spout_server]}],
+        Expected = [{"test1", {spout_server, start_link, [Spout1]}, permanent, brutal_kill, worker, [spout_server]}],
         Result = build_child_specs(#topology{name = "test", spout_specs = [Spout1]}),
         ?assertEqual(Expected, Result)
       end
@@ -117,15 +123,15 @@ build_child_specs_test_() ->
       fun() ->
         Expected = [
           {"test1",
-            {bolt_server, start_link, [test1, {test_bolt, []}]},
+            {bolt_server, start_link, [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]},
           {"test2",
-            {bolt_server, start_link, [test2, {test_bolt, []}]},
+            {bolt_server, start_link, [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]},
           {"test3",
-            {bolt_server, start_link, [test3, {test_bolt, []}]},
+            {bolt_server, start_link, [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]}],
         Result = build_child_specs(#topology{name = "test", bolt_specs = [#bolt_spec{id = "test", bolt = {test_bolt, []}, workers = 3, stateful = true}]}),
@@ -137,11 +143,11 @@ build_child_specs_test_() ->
         Spout1 = #spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 1},
         Expected = [
           {"spout_test1",
-            {spout_server, start_link, [spout_test1, Spout1]},
+            {spout_server, start_link, [Spout1]},
             permanent, brutal_kill, worker,
             [spout_server]},
           {"bolt_test1",
-            {bolt_server, start_link, [bolt_test1, {test_bolt, [2]}]},
+            {bolt_server, start_link, [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 1, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]}
         ],
@@ -158,23 +164,23 @@ build_child_specs_test_() ->
         Spout1 = #spout_spec{id = "spout_test", spout = {test_spout, [1]}, workers = 3},
         Expected = [
           {"spout_test1",
-            {spout_server, start_link, [spout_test1, Spout1]},
+            {spout_server, start_link, [Spout1]},
             permanent, brutal_kill, worker,
             [spout_server]},
           {"spout_test2",
-            {spout_server, start_link, [spout_test2, Spout1]},
+            {spout_server, start_link, [Spout1]},
             permanent, brutal_kill, worker,
             [spout_server]},
           {"spout_test3",
-            {spout_server, start_link, [spout_test3, Spout1]},
+            {spout_server, start_link, [Spout1]},
             permanent, brutal_kill, worker,
             [spout_server]},
           {"bolt_test1",
-            {bolt_server, start_link, [bolt_test1, {test_bolt, [2]}]},
+            {bolt_server, start_link, [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]},
           {"bolt_test2",
-            {bolt_server, start_link, [bolt_test2, {test_bolt, [2]}]},
+            {bolt_server, start_link, [#bolt_spec{id = "bolt_test", bolt = {test_bolt, [2]}, workers = 2, stateful = true}]},
             permanent, brutal_kill, worker,
             [bolt_server]}
         ],

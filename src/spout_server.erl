@@ -7,7 +7,7 @@
 -behaviour(gen_server).
 
 %% External API
--export([start_link/2, emit/2, emit/3, stop/1]).
+-export([start_link/1, emit/2, emit/3, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, terminate/2, run_loop/1]).
@@ -20,10 +20,10 @@
 }).
 
 
-start_link(ChildId, Spout) ->
+start_link(Spout) ->
   {Module, Args} = Spout#spout_spec.spout,
   {ok, SpoutState} = apply(Module, open, [Args]),
-  gen_server:start_link({local, ChildId}, ?MODULE, [Spout, SpoutState], []).
+  gen_server:start_link(?MODULE, [Spout, SpoutState], []).
 
 emit(Pid, Tuple) ->
   gen_server:call(Pid, {emit, Tuple}).
@@ -43,7 +43,7 @@ terminate(_Reason, #state{run_loop_pid = Pid}) ->
   exit(Pid, kill).
 
 handle_call({emit, Tuple}, _From, #state{spout_spec = Spout} = State) ->
-  {ok, StreamPid} = stream:start_link({Spout#spout_spec.id,undefined}),
+  {ok, StreamPid} = stream:start_link(Spout),
   stream:emit(StreamPid, Tuple),
   {reply, ack, State};
 handle_call({emit, Tuple, MsgId}, _From, #state{spout_spec = Spout} = State) ->
@@ -68,8 +68,8 @@ start_link_test() ->
   T = #topology{spout_specs=[SpoutSpec]},
   R = topology_graph:start_link(T),
   io:format("~p~n", [R]),
-  {ok, _Pid} = spout_server:start_link(spout_test, SpoutSpec),
-  ?assertNot(undefined == whereis(spout_test)),
+  {ok, Pid} = spout_server:start_link(SpoutSpec),
+  ?assertNot(undefined == Pid),
 
   receive
   after 500 -> ok

@@ -8,6 +8,7 @@
 
 %% API
 -export([start_link/1, register_spout_server/2, register_bolt_server/2, traverse/1, stop/0, get_spout_server/1]).
+-export([outbound_bolts/1, find_bolt_server/1]).
 
 %% gen_server
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -44,6 +45,11 @@ traverse(#traverse_state{queue=Q}) ->
       done
   end.
 
+outbound_bolts(Node) ->
+  G = get_graph(),
+  Edges = digraph:out_edges(G, Node),
+  load_bolts(Edges, G).
+
 get_spout_server(Spout) ->
   G = get_graph(),
   case digraph:vertex(G, Spout) of
@@ -58,6 +64,16 @@ register_spout_server(Spout, Pid) ->
 
 register_bolt_server(Bolt, Pid) ->
   gen_server:call(?MODULE, {register_bolt_server, Bolt, Pid}).
+
+find_bolt_server(Bolt) ->
+  G = get_graph(),
+  case digraph:vertex(G, Bolt) of
+    {Bolt, {Pid}} ->
+      {ok, Pid};
+    false ->
+      {error, unknown_bolt}
+  end.
+
 
 stop() ->
   gen_server:call(?MODULE, stop).
@@ -99,6 +115,19 @@ get_graph() ->
   [{graph, Graph}] = ets:lookup(?MODULE, graph),
   Graph.
 
+
+load_bolts(Edges, G) ->
+  load_bolts(Edges, [], G).
+load_bolts([], EdgesAndBolts, _G) ->
+  {ok, EdgesAndBolts};
+load_bolts([Edge | Rest], EdgesAndBolts, G) ->
+  case digraph:edge(G, Edge) of
+    {_E, _V1, Bolt, Grouping} ->
+      load_bolts(Rest, [{Grouping, Bolt} | EdgesAndBolts], G);
+    false ->
+      error_logger:error_msg("Bad Edge"),
+      load_bolts(Rest, EdgesAndBolts, G)
+  end.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -145,6 +174,52 @@ register_test_() ->
 
         {ok, Pid} = topology_graph:get_spout_server(Spout),
         ?assertEqual(Pid, self()),
+        topology_graph:stop()
+      end
+    }
+  ].
+
+load_bolts_test_() ->
+  [
+    {"Load bolts and edges from a given node",
+      fun() ->
+        Spout = #spout_spec{id = "spout_1", spout = {test_spout, [1]}, workers = 3},
+        Grouping = #grouping{type=field, source="spout_1"},
+        Bolt1 = #bolt_spec{id = "bolt_1", bolt = {test_bolt, [2]}, workers = 2, stateful = true, groupings=[Grouping]},
+
+        T = #topology{
+          name = "test",
+          bolt_specs = [Bolt1],
+          spout_specs = [Spout]},
+        topology_graph:start_link(T),
+
+        G = get_graph(),
+        Edges = digraph:out_edges(G, Spout),
+        {ok, Results} = load_bolts(Edges, G),
+
+        ?assertEqual([{Grouping, Bolt1}], Results),
+        topology_graph:stop()
+      end
+    }
+  ].
+
+outbound_bolts_test_() ->
+  [
+    {"Load bolts and edges from a given node",
+      fun() ->
+        Spout = #spout_spec{id = "spout_1", spout = {test_spout, [1]}, workers = 3},
+        Grouping = #grouping{type=field, source="spout_1"},
+        Bolt1 = #bolt_spec{id = "bolt_1", bolt = {test_bolt, [2]}, workers = 2, stateful = true, groupings=[Grouping]},
+
+        T = #topology{
+          name = "test",
+          bolt_specs = [Bolt1],
+          spout_specs = [Spout]},
+        topology_graph:start_link(T),
+
+        {ok, Results} = topology_graph:outbound_bolts(Spout),
+
+        ?assertEqual([{Grouping, Bolt1}], Results),
         topology_graph:stop()
       end
     }

@@ -6,7 +6,7 @@
 
 -include("topology.hrl").
 %% External API
--export([start_link/2, tuple/2]).
+-export([start_link/1, tuple/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, terminate/2]).
@@ -16,9 +16,9 @@
   mod_state
 }).
 
-start_link(ChildId, #bolt_spec{bolt={Module, Args}} = Bolt) when is_atom(Module) ->
+start_link(#bolt_spec{bolt={Module, Args}} = Bolt) when is_atom(Module) ->
   {ok, ModState} = apply(Module, prepare, [Args]),
-  gen_server:start_link({local, ChildId}, ?MODULE, [Bolt, Module, ModState], []).
+  gen_server:start_link(?MODULE, [Bolt, Module, ModState], []).
 
 
 init([Bolt, Module, ModState]) ->
@@ -44,7 +44,7 @@ handle_call({message, Tuple, _MsgId}, Emitter, #state{module = Module, mod_state
 
 start_link_test() ->
   {ok, Pid} = bolt_server:start_link(test_bolt, {test_bolt, []}),
-  ?assertNot(undefined == whereis(test_bolt)),
+  ?assertNot(undefined == Pid),
 
   bolt_server:tuple(Pid, {test_tuple}),
 
